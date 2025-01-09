@@ -1,9 +1,14 @@
+// ignore_for_file: unused_element
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:accomodation/image_picker.dart';
 import 'package:accomodation/modals/roomdetail.dart';
+import 'propert_form_logic.dart';
 
 class EditApproveButtonscreen extends StatefulWidget {
   final PropertyDetails propertyDetails;
+  // ignore: prefer_typing_uninitialized_variables
+  //
 
   const EditApproveButtonscreen({
     required this.propertyDetails,
@@ -17,18 +22,20 @@ class EditApproveButtonscreen extends StatefulWidget {
 
 class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
   final _formKey = GlobalKey<FormState>();
+  // ignore: non_constant_identifier_names
+  final db = FirebaseFirestore.instance;
 
   // Define controllers for all form fields
-  late final TextEditingController nameController;
-  late final TextEditingController emailController;
-  late final TextEditingController phoneController;
-  late final TextEditingController addressController;
-  late final TextEditingController cityController;
-  late final TextEditingController zipController;
-  late final TextEditingController countryController;
-  late final TextEditingController descriptionController;
-  late final TextEditingController contactController;
-  late final TextEditingController dateController;
+  late TextEditingController placenameController;
+  late TextEditingController nameController;
+  late TextEditingController emailController;
+  late TextEditingController addressController;
+  late TextEditingController cityController;
+  late TextEditingController zipController;
+  late TextEditingController countryController;
+  late TextEditingController descriptionController;
+  late TextEditingController contactController;
+  late TextEditingController selectedrentController;
 
   // Dropdown field variables
   String? selectedPlaceType;
@@ -36,10 +43,19 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
   String? selectedRoomsAvailable;
   String? selectedFurnishing;
   String? selectedAvailabilityFor;
+  String? createdby;
+  DateTime? createdat;
+  DateTime? updatedat;
+  String? updatedby;
+
+  // ignore: prefer_typing_uninitialized_variables
+
+  bool isactive = false;
+  bool isverified = false;
 
   final List<String> placeTypes = ['Residential', 'Commercial', 'Industrial'];
   final List<String> sharingTypes = ['Single', 'Double', 'Triple'];
-  final List<String> roomsAvailable = ['1', '2', '3+'];
+  final List<String> roomsAvailable = ['1', '2', '3', '4'];
   final List<String> furnishingTypes = [
     'Furnished',
     'Semi-Furnished',
@@ -50,27 +66,34 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
     'Families',
     'Professionals'
   ];
+  // ignore: non_constant_identifier_names
+  final propertyFormLogic = PropertyFormLogic();
 
-  // Checkbox field variables
-  Map<String, bool> amenities = {
-    'WiFi': false,
-    'Parking': false,
-    'Gym': false,
-    'Swimming Pool': false,
-  };
+  // ignore: prefer_typing_uninitialized_variables
+  late final amenities;
 
-  double rentSliderValue = 5000;
+  // ignore: prefer_typing_uninitialized_variables
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with values from the received data
+    amenities = propertyFormLogic.amenities;
+    isactive = widget.propertyDetails.isactive;
+    isverified = widget.propertyDetails.isverified;
+
+    createdby = widget.propertyDetails.createdby;
+    createdat = propertyFormLogic.createdat;
+
+    // // Initialize controllers with values from the received data
+    placenameController =
+        TextEditingController(text: widget.propertyDetails.placename);
     nameController = TextEditingController(text: widget.propertyDetails.name);
+    selectedrentController =
+        TextEditingController(text: widget.propertyDetails.selectedrent);
+
     emailController = TextEditingController(text: widget.propertyDetails.email);
-    phoneController = TextEditingController(text: widget.propertyDetails.phone);
     addressController =
         TextEditingController(text: widget.propertyDetails.address);
-    cityController = TextEditingController(text: widget.propertyDetails.city);
     zipController = TextEditingController(text: widget.propertyDetails.zip);
     countryController =
         TextEditingController(text: widget.propertyDetails.country);
@@ -78,43 +101,35 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
         TextEditingController(text: widget.propertyDetails.description);
     contactController =
         TextEditingController(text: widget.propertyDetails.contact);
-    dateController = TextEditingController(text: widget.propertyDetails.date);
 
-    for (var amenity in widget.propertyDetails.amenities) {
-      print(widget.propertyDetails.amenities);
+    for (String amenity in widget.propertyDetails.amenities) {
       if (amenities.containsKey(amenity)) {
         amenities[amenity] = true;
-        print('it worked');
       }
-    }
-    for (int i = 0; i < widget.propertyDetails.amenities.length; i++) {
-      print(widget.propertyDetails.amenities[i]);
-    }
-    for (int i = 0; i < amenities.length; i++) {
-      print(amenities[i]);
     }
 
     // Set default values for dropdowns
     selectedPlaceType = placeTypes[0];
     selectedSharing = sharingTypes[0];
-    selectedRoomsAvailable = roomsAvailable[0];
+    selectedRoomsAvailable = propertyFormLogic.roomsAvailable[0];
     selectedFurnishing = furnishingTypes[0];
     selectedAvailabilityFor = availabilityOptions[0];
+    updatedby = '';
   }
 
   @override
   void dispose() {
     // Dispose controllers to free memory
+    placenameController.dispose();
     nameController.dispose();
     emailController.dispose();
-    phoneController.dispose();
     addressController.dispose();
-    cityController.dispose();
     zipController.dispose();
     countryController.dispose();
     descriptionController.dispose();
     contactController.dispose();
-    dateController.dispose();
+    updatedby = '';
+
     super.dispose();
   }
 
@@ -146,20 +161,20 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
                     buildTextField(emailController, 'Email',
                         'Enter email address', TextInputType.emailAddress),
                     const SizedBox(height: 16),
-                    buildTextField(phoneController, 'Phone Number',
-                        'Enter phone number', TextInputType.phone),
+                    buildTextField(contactController, 'Contact',
+                        'Enter contact number ', TextInputType.phone),
                     const SizedBox(height: 16),
                     buildTextField(addressController, 'Address',
                         'Enter property address', TextInputType.streetAddress),
-                    const SizedBox(height: 16),
-                    buildTextField(cityController, 'City', 'Enter city name',
-                        TextInputType.text),
                     const SizedBox(height: 16),
                     buildTextField(zipController, 'ZIP Code', 'Enter ZIP code',
                         TextInputType.number),
                     const SizedBox(height: 16),
                     buildTextField(countryController, 'Country',
                         'Enter country name', TextInputType.text),
+                    const SizedBox(height: 16),
+                    buildTextField(selectedrentController, 'Rent',
+                        'Enter Rent Required', TextInputType.number),
                     const SizedBox(height: 16),
                     buildDropdownField(
                       label: 'Place Type',
@@ -182,7 +197,7 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
                     buildDropdownField(
                       label: 'Rooms Available',
                       value: selectedRoomsAvailable,
-                      items: roomsAvailable,
+                      items: propertyFormLogic.roomsAvailable,
                       onChanged: (value) => setState(() {
                         selectedRoomsAvailable = value!;
                       }),
@@ -217,15 +232,11 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
                       );
                     }).toList(),
                     const SizedBox(height: 16),
-                    const Text('Rent:', style: TextStyle(fontSize: 16)),
-                    Slider(
-                      value: rentSliderValue,
-                      min: 1000,
-                      max: 10000,
-                      divisions: 10,
-                      label: rentSliderValue.toStringAsFixed(0),
+                    buildCheckboxSelector(
+                      label: 'Is Active',
+                      value: isactive,
                       onChanged: (value) => setState(() {
-                        rentSliderValue = value;
+                        isactive = value ?? false;
                       }),
                     ),
                   ],
@@ -247,46 +258,50 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(255, 234, 74, 49)),
                   onPressed: () {
-                    // Handle "Decline"
-                  },
-                  child: const Text('Decline',
-                      style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  onPressed: () {
-                    // Handle "Approve"
-                  },
-                  child: const Text('Approve',
-                      style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                  onPressed: () {
+                    print('decline button has been pressed ');
                     if (_formKey.currentState?.validate() ?? false) {
-                      print({
-                        "name": nameController.text,
-                        "email": emailController.text,
-                        "phone": phoneController.text,
-                        "address": addressController.text,
-                        "city": cityController.text,
-                        "zip": zipController.text,
-                        "country": countryController.text,
-                        "placeType": selectedPlaceType,
-                        "sharingType": selectedSharing,
-                        "roomsAvailable": selectedRoomsAvailable,
-                        "furnishingType": selectedFurnishing,
-                        "availableFor": selectedAvailabilityFor,
-                        "amenities": amenities.entries
-                            .where((entry) => entry.value)
-                            .map((entry) => entry.key)
-                            .toList(),
-                        "rentSliderValue": rentSliderValue,
-                      });
+                      Future<void> deletePropertyFromFirestore(
+                          String documentId) async {
+                        try {
+                          await db
+                              .collection('properties')
+                              .doc(documentId)
+                              .delete();
+                          print("Property deleted successfully");
+                        } catch (e) {
+                          print("Error deleting property: $e");
+                        }
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('the data has been declined')));
+                      Navigator.pop(context);
                     }
                   },
-                  child: const Text('Save Changes',
+                  child: const Text('Decline',
+                      style:
+                          TextStyle(color: Color.fromARGB(255, 249, 249, 249))),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 76, 253, 126)),
+                  onPressed: () {
+                    print('accept button has been pressed ');
+                    widget.propertyDetails.isverified = true;
+                    widget.propertyDetails.updatedat = DateTime.now();
+
+                    db
+                        .collection('properties')
+                        .doc(widget.propertyDetails.id)
+                        .set(widget.propertyDetails.toMap());
+
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Data has been approved")),
+                    );
+                  },
+                  child: const Text('Approve',
                       style: TextStyle(color: Colors.white)),
                 ),
               ],
@@ -316,20 +331,78 @@ class _EditApproveButtonscreenState extends State<EditApproveButtonscreen> {
     );
   }
 
+  Widget buildCheckboxSelector({
+    required String label,
+    required bool value,
+    required void Function(bool?) onChanged,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 16),
+        ),
+        Checkbox(
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
+  Widget buildDateEditor({
+    required BuildContext context,
+    required TextEditingController controller,
+    required String label,
+    required void Function(DateTime selectedDate) onDateSelected,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'Tap to select a date',
+        border: const OutlineInputBorder(),
+        suffixIcon: const Icon(Icons.calendar_today),
+      ),
+      onTap: () async {
+        DateTime? selectedDate = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2100),
+        );
+
+        if (selectedDate != null) {
+          controller.text =
+              '${selectedDate.day}-${selectedDate.month}-${selectedDate.year}';
+          onDateSelected(selectedDate);
+        }
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please select a date.';
+        }
+        return null;
+      },
+    );
+  }
+
   Widget buildDropdownField({
     required String label,
     required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
+    required List<dynamic> items,
+    required ValueChanged<dynamic> onChanged,
   }) {
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<dynamic>(
       value: value,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
       ),
       items: items
-          .map((item) => DropdownMenuItem(
+          .map((item) => DropdownMenuItem<dynamic>(
                 value: item,
                 child: Text(item),
               ))

@@ -1,6 +1,12 @@
+// ignore_for_file: avoid_print
+
 import 'package:accomodation/image_picker.dart';
+import 'package:accomodation/modals/roomdetail.dart';
 import 'package:accomodation/screens/propert_form_logic.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:accomodation/widgets/dropdown.dart';
+
 // import 'package:intl/intl.dart';
 
 class FormPage extends StatefulWidget {
@@ -13,6 +19,21 @@ class FormPage extends StatefulWidget {
 class _FormPageState extends State<FormPage> {
   final _formKey = GlobalKey<FormState>();
   final PropertyFormLogic _formLogic = PropertyFormLogic();
+  String createdby = '';
+  DateTime? createdat;
+  DateTime? updatedat;
+  dynamic selectedrent;
+  bool isactive = false;
+  bool isverified = false;
+  List<String> selectedItemCity = ["0"];
+  List<String> selectedItemAreaState = ["0"];
+
+  void _onactiveCheckboxChanged(bool? value) {
+    setState(() {
+      isactive = value ?? false;
+      _formLogic.isactive = isactive; // Sync with _formLogic
+    });
+  }
 
   @override
   void dispose() {
@@ -20,13 +41,58 @@ class _FormPageState extends State<FormPage> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _submitForm() async {
+    print("********** Pass by value: ${selectedItemCity}");
     if (_formKey.currentState?.validate() ?? false) {
-      _formLogic.addProperty();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
+      final db = FirebaseFirestore.instance;
+
+      // Ensure selectedrent is in the correct type
+
+      final property = PropertyDetails(
+        selectedcity: selectedItemCity.first,
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        placename: _formLogic.placenameController.text,
+        name: _formLogic.nameController.text,
+        email: _formLogic.emailController.text,
+        address: _formLogic.addressController.text,
+        zip: _formLogic.zipController.text,
+        country: _formLogic.countryController.text,
+        description: _formLogic.descriptionController.text,
+        contact: _formLogic.contactController.text,
+        placeType: _formLogic.selectedPlaceType ?? 'Not Selected',
+        selectedstate: _formLogic.selectedstate ?? 'Not Selected',
+        sharingType: _formLogic.selectedSharing ?? 'Not Selected',
+        roomsAvailable: _formLogic.selectedRoomsAvailable ?? 'Not Selected',
+        furnishingType: _formLogic.selectedFurnishing ?? 'Not Selected',
+        availableFor: _formLogic.selectedAvailabilityFor ?? 'Not Selected',
+        createdby: _formLogic.createdby.toString(),
+        createdat: DateTime.now(),
+        updatedat: null,
+        isverified: _formLogic.isverified,
+        isactive: _formLogic.isactive,
+        amenities: _formLogic.amenities.entries
+            .where((entry) => entry.value)
+            .map((entry) => entry.key)
+            .toList(),
+        selectedrent: _formLogic.selectedrentController.text,
+        updatedby: null,
       );
-      _formLogic.clearForm();
+
+      try {
+        await db
+            .collection('properties')
+            .doc(property.id)
+            .set(property.toMap());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+        _formLogic.clearForm();
+      } catch (e) {
+        print('Error submitting form: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error submitting form.')),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please correct the errors in the form.')),
@@ -52,7 +118,7 @@ class _FormPageState extends State<FormPage> {
               const SizedBox(height: 20),
               // Place Name
               TextFormField(
-                controller: _formLogic.contactController,
+                controller: _formLogic.placenameController,
                 decoration: const InputDecoration(
                   labelText: 'Enter Place Name:',
                   hintText: 'Enter place name',
@@ -126,7 +192,6 @@ class _FormPageState extends State<FormPage> {
                 },
               ),
               const SizedBox(height: 16),
-              // Amenities Checkboxes
               const Text('Amenities:', style: TextStyle(fontSize: 18)),
               ..._formLogic.amenities.keys.map((String key) {
                 return CheckboxListTile(
@@ -140,23 +205,32 @@ class _FormPageState extends State<FormPage> {
                 );
               }).toList(),
               const SizedBox(height: 16),
-              // Rent Slider
-              const Text('Select Rent Range:', style: TextStyle(fontSize: 18)),
-              Slider(
-                value: _formLogic.rentSliderValue,
-                min: 10000,
-                max: 20000,
-                divisions: 10,
-                label: _formLogic.rentSliderValue.round().toString(),
-                onChanged: (value) {
-                  setState(() {
-                    _formLogic.rentSliderValue = value;
-                  });
-                },
-              ),
-              Text(
-                  'Selected Rent: ${_formLogic.rentSliderValue.round()} rupees'),
-              const SizedBox(height: 20),
+              TextFormField(
+                  initialValue:
+                      selectedrent != null ? selectedrent.toString() : '',
+                  decoration: const InputDecoration(
+                    labelText: 'Rent Price',
+                    hintText: 'Enter rent price',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.attach_money),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter rent price';
+                    }
+                    if (double.tryParse(value) == null) {
+                      return 'Please enter a valid number';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    setState(() {
+                      selectedrent.text = double.tryParse(value) ?? 0.0;
+                    });
+                  }),
+              const SizedBox(height: 16),
+
               // Owner Details
               const Text('Enter Owner Details:',
                   style: TextStyle(fontSize: 18)),
@@ -188,7 +262,7 @@ class _FormPageState extends State<FormPage> {
               ),
               const SizedBox(height: 16),
               buildTextField(
-                controller: _formLogic.phoneController,
+                controller: _formLogic.contactController,
                 label: 'Phone Number',
                 hint: 'Enter phone number',
                 inputType: TextInputType.phone,
@@ -213,15 +287,22 @@ class _FormPageState extends State<FormPage> {
                     : null,
               ),
               const SizedBox(height: 16),
-              buildTextField(
-                controller: _formLogic.cityController,
-                label: 'City',
-                hint: 'Enter city',
-                inputType: TextInputType.text,
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please enter city.'
-                    : null,
+
+              Dropdown(
+                collectionName: 'City',
+                selectedItem: selectedItemCity,
+                dropdownName: 'city',
+                keyName: 'cityName',
               ),
+              Dropdown(
+                collectionName: 'Area',
+                selectedItem: selectedItemAreaState,
+                dropdownName: 'Area or State',
+                keyName: 'areaName',
+                cityId: selectedItemCity.toString(),
+              ),
+              const SizedBox(height: 16),
+
               const SizedBox(height: 16),
               buildTextField(
                 controller: _formLogic.zipController,
@@ -232,8 +313,8 @@ class _FormPageState extends State<FormPage> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter ZIP code.';
                   }
-                  if (!RegExp(r'^\d{5}$').hasMatch(value)) {
-                    return 'Enter a valid 5-digit ZIP code.';
+                  if (!RegExp(r'^\d{6}$').hasMatch(value)) {
+                    return 'Enter a valid 6-digit ZIP code.';
                   }
                   return null;
                 },
@@ -260,27 +341,23 @@ class _FormPageState extends State<FormPage> {
               ),
               const SizedBox(height: 16),
               // Date Validation
-              TextFormField(
-                controller: _formLogic.dateController,
-                decoration: const InputDecoration(
-                  labelText: 'Date',
-                  hintText: 'Enter date (MM/DD/YYYY)',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.datetime,
-                // validator: (value) {
-                //   if (value == null || value.isEmpty) {
-                //     return 'Please enter a date.';
-                //   }
-                //   try {
-                //     DateFormat('MM/dd/yyyy').parse(value);
-                //   } catch (e) {
-                //     return 'Enter a valid date (MM/DD/YYYY).';
-                //   }
-                //   return null;
-                // },
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Is Active: ${isactive ? "true" : "false"}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  Checkbox(
+                    value: isactive,
+                    onChanged: _onactiveCheckboxChanged,
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
               ElevatedButton(
                 onPressed: _submitForm,
                 child: const Text('Submit'),
@@ -292,13 +369,16 @@ class _FormPageState extends State<FormPage> {
     );
   }
 
-  DropdownButtonFormField<String> buildDropdownField({
+  DropdownButtonFormField<dynamic> buildDropdownField({
     required String label,
     required String? value,
-    required List<String> items,
-    required void Function(String?) onChanged,
+    required List<dynamic> items,
+    required void Function(dynamic) onChanged,
   }) {
-    return DropdownButtonFormField<String>(
+    if (label == "City") {
+      print("*********************** city list: ${items.length}");
+    }
+    return DropdownButtonFormField<dynamic>(
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(),
@@ -315,7 +395,7 @@ class _FormPageState extends State<FormPage> {
           ? 'Please select an option for $label.'
           : null,
     );
-  }
+  } //helper function down that is needed to understand
 
   TextFormField buildTextField({
     required TextEditingController controller,

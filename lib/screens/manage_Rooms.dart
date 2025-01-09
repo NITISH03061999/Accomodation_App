@@ -1,6 +1,5 @@
-import 'package:accomodation/modals/roomdetail.dart';
-import 'package:accomodation/screens/AddedRooms.dart';
-import 'package:accomodation/screens/ApproveRooms.dart';
+import 'package:accomodation/screens/approvalpending.dart';
+import 'package:accomodation/screens/approvedproperty.dart';
 import 'package:flutter/material.dart';
 
 class ManagerRooms extends StatelessWidget {
@@ -17,19 +16,19 @@ class ManagerRooms extends StatelessWidget {
             tabs: [
               Tab(
                 icon: Icon(Icons.add),
-                text: 'Added Rooms',
+                text: 'Approved Rooms',
               ),
               Tab(
                 icon: Icon(Icons.assignment_turned_in),
-                text: 'Approved Rooms',
+                text: 'Approval Pending Rooms ',
               ),
             ],
           ),
         ),
-        body: TabBarView(
+        body: const TabBarView(
           children: [
-            Addedrooms(),
-            Approverooms(), // Corrected to ApproveRooms()
+            ApprovedRooms(),
+            Approvalpendingrooms(),
           ],
         ),
       ),
